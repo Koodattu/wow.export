@@ -13,6 +13,7 @@ const BufferWrapper = require('../../buffer');
 const BoneMapper = require('../BoneMapper');
 const AnimMapper = require('../AnimMapper');
 const log = require('../../log');
+const materialProperties = require('./gltf-material');
 
 // See https://gist.github.com/mhenry07/e31d8c94db91fb823f2eed2fc1b43f15
 const GLTF_ARRAY_BUFFER = 0x8892;
@@ -169,8 +170,8 @@ class GLTFWriter {
 	 * @param {Array} triangles
 	 * @param {string} matName
 	 */
-	addMesh(name, triangles, matName) {
-		this.meshes.push({ name, triangles, matName });
+	addMesh(name, triangles, matName, materialOptions) {
+		this.meshes.push({ name, triangles, matName, materialOptions });
 	}
 
 	/**
@@ -220,6 +221,7 @@ class GLTFWriter {
 			scenes: [
 				{
 					name: this.name + '_Scene',
+					...(this.sceneExtras ? { extras: this.sceneExtras } : {}),
 					nodes: [0]
 				}
 			],
@@ -945,6 +947,19 @@ class GLTFWriter {
 			materialMap.set(texFile.matName, materialIndex);
 		}
 
+		const materialVariants = new Map();
+		const materialForMesh = (mesh) => {
+			const base = materialMap.get(mesh.matName) ?? 0;
+			if (!mesh.materialOptions || !root.materials?.length) return base;
+			const props = materialProperties(mesh.materialOptions);
+			const key = base + ':' + JSON.stringify(props);
+			if (!materialVariants.has(key)) {
+				materialVariants.set(key, root.materials.length);
+				root.materials.push({ ...root.materials[base], ...props });
+			}
+			return materialVariants.get(key);
+		};
+
 		const mesh_component_meta = Array(this.meshes.length);
 		for (let i = 0, n = this.meshes.length; i < n; i++) {
 			const mesh = this.meshes[i];
@@ -1107,7 +1122,7 @@ class GLTFWriter {
 						attributes: primitive_attributes,
 						indices: accessorIndex,
 						mode: GLTF_TRIANGLES,
-						material: materialMap.get(mesh.matName) ?? 0
+						material: materialForMesh(mesh)
 					}
 				]
 			});
@@ -1393,7 +1408,7 @@ class GLTFWriter {
 						attributes: eq_prim_attribs,
 						indices: accessorIndex,
 						mode: GLTF_TRIANGLES,
-						material: materialMap.get(mesh.matName) ?? 0
+						material: materialForMesh(mesh)
 					}]
 				});
 

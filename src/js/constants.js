@@ -13,7 +13,7 @@ const os = require('os');
 const INSTALL_PATH = process.platform === 'darwin'
 	? nw.__dirname
 	: path.dirname(process.execPath);
-const DATA_PATH = nw.App.dataPath;
+const DATA_PATH = process.env.WOW_EXPORT_DATA_PATH || nw.App.dataPath;
 
 // on macOS, update manifest paths are relative to the portable root (the
 // directory containing the .app bundle), not app.nw inside it.

@@ -149,6 +149,7 @@ const SLOT_TO_ATTACHMENT = {
 	1: [ATTACHMENT_ID.HELMET],                                      // head
 	[SHOULDER_SLOT_L]: [ATTACHMENT_ID.SHOULDER_LEFT],  // shoulder (L)
 	[SHOULDER_SLOT_R]: [ATTACHMENT_ID.SHOULDER_RIGHT], // shoulder (R)
+	6: [ATTACHMENT_ID.BELT_BUCKLE],                                // waist buckle
 	15: [ATTACHMENT_ID.BACK],                                       // back/cape
 	16: [ATTACHMENT_ID.HAND_RIGHT],                                 // main-hand weapon
 	17: [ATTACHMENT_ID.HAND_LEFT, ATTACHMENT_ID.SHIELD]             // off-hand (weapon or shield)

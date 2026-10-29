@@ -6,6 +6,8 @@
 
 const log = require('../../log');
 const db2 = require('../../casc/db2');
+const { raceChain, selectModel } = require('./component-model-selection');
+const race_fallbacks = new Map();
 
 // maps FileDataID -> { raceID, genderIndex, classID, positionIndex }
 const file_data_to_info = new Map();
@@ -34,6 +36,8 @@ const initialize = async () => {
 			});
 		}
 
+		for (const [id, row] of await db2.ChrRaces.getAllRows()) race_fallbacks.set(id, row);
+
 		log.write('Loaded ComponentModelFileData for %d models', file_data_to_info.size);
 		is_initialized = true;
 		init_promise = null;
@@ -51,45 +55,9 @@ const initialize = async () => {
  * @returns {number|null} - best matching FileDataID or null
  */
 const getModelForRaceGender = (file_data_ids, race_id, gender_index, fallback_race_id = 0) => {
-	if (!file_data_ids || file_data_ids.length === 0)
-		return null;
-
-	// if only one option, return it
-	if (file_data_ids.length === 1)
-		return file_data_ids[0];
-
-	// try exact race + gender match
-	for (const fdid of file_data_ids) {
-		const info = file_data_to_info.get(fdid);
-		if (info && info.raceID === race_id && info.genderIndex === gender_index)
-			return fdid;
-	}
-
-	// try race + any gender
-	for (const fdid of file_data_ids) {
-		const info = file_data_to_info.get(fdid);
-		if (info && info.raceID === race_id && info.genderIndex === GENDER_ANY)
-			return fdid;
-	}
-
-	// try fallback race if provided
-	if (fallback_race_id > 0) {
-		for (const fdid of file_data_ids) {
-			const info = file_data_to_info.get(fdid);
-			if (info && info.raceID === fallback_race_id && (info.genderIndex === gender_index || info.genderIndex === GENDER_ANY))
-				return fdid;
-		}
-	}
-
-	// try race=0 (any race)
-	for (const fdid of file_data_ids) {
-		const info = file_data_to_info.get(fdid);
-		if (info && info.raceID === 0)
-			return fdid;
-	}
-
-	// fallback to first
-	return file_data_ids[0];
+	const chain = raceChain(race_id, gender_index, race_fallbacks);
+	if (fallback_race_id > 0) chain.push({ race: fallback_race_id, gender: gender_index });
+	return selectModel(file_data_ids || [], file_data_to_info, chain);
 };
 
 /**
@@ -118,28 +86,7 @@ const getModelsForRaceGenderByPosition = (file_data_ids, race_id, gender_index) 
 	}
 
 	// helper to find best match from a list of candidates
-	const find_best = (candidates) => {
-		// exact race + gender
-		for (const c of candidates) {
-			if (c.info.raceID === race_id && c.info.genderIndex === gender_index)
-				return c.fdid;
-		}
-
-		// race + any gender
-		for (const c of candidates) {
-			if (c.info.raceID === race_id && c.info.genderIndex === GENDER_ANY)
-				return c.fdid;
-		}
-
-		// any race
-		for (const c of candidates) {
-			if (c.info.raceID === 0)
-				return c.fdid;
-		}
-
-		// fallback to first
-		return candidates.length > 0 ? candidates[0].fdid : null;
-	};
+	const find_best = candidates => getModelForRaceGender(candidates.map(c => c.fdid), race_id, gender_index);
 
 	result.left = find_best(by_position[0]);
 	result.right = find_best(by_position[1]);

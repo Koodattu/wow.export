@@ -1,0 +1,6 @@
+.git
+node_modules
+bin
+publish
+worker/data
+**/.env

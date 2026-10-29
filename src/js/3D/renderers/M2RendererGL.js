@@ -20,6 +20,7 @@ const GLTexture = require('../gl/GLTexture');
 
 const textureRibbon = require('../../ui/texture-ribbon');
 const { create_bones_ubo } = require('./renderer_utils');
+const boneTrack = require('../bone-track');
 
 // vertex shader name to ID mapping (matches vertex shader switch cases)
 const VERTEX_SHADER_IDS = {
@@ -729,7 +730,16 @@ class M2RendererGL {
 
 	_create_bones_ubo() {
 		const bone_count = this.bones ? this.bones.length : 0;
-		this.bone_matrices = create_bones_ubo(this.shader, this.gl, this.ctx, this.ubos, bone_count);
+		this._gpu_bone_matrices = create_bones_ubo(this.shader, this.gl, this.ctx, this.ubos, bone_count);
+		// Attachments can reference bones beyond the shader's 256-matrix palette.
+		// Keep the complete skeleton on the CPU for baking and attachment transforms.
+		this.bone_matrices = bone_count * 16 > this._gpu_bone_matrices.length
+			? new Float32Array(bone_count * 16) : this._gpu_bone_matrices;
+		for (let i = 0; i < bone_count; i++) {
+			const offset = i * 16;
+			this.bone_matrices[offset] = this.bone_matrices[offset + 5] = this.bone_matrices[offset + 10] = this.bone_matrices[offset + 15] = 1;
+		}
+		this._scratch_calculated = new Uint8Array(bone_count);
 	}
 
 	_create_tex_matrices() {
@@ -956,12 +966,11 @@ class M2RendererGL {
 			const effective_anim_idx = use_closed_hand ? hands_closed_idx : anim_idx;
 			const effective_time_ms = use_closed_hand ? 0 : time_ms; // use frame 0 for HandsClosed
 
-			// check if bone has any animation data for this animation (from anim_bone)
-			const has_trans = anim_bone?.translation?.timestamps?.[effective_anim_idx]?.length > 0;
-			const has_rot = anim_bone?.rotation?.timestamps?.[effective_anim_idx]?.length > 0;
-			const has_scale = anim_bone?.scale?.timestamps?.[effective_anim_idx]?.length > 0;
-			const has_scale_fallback = !has_scale && effective_anim_idx !== 0 && anim_bone?.scale?.timestamps?.[0]?.length > 0;
-			const has_animation = has_trans || has_rot || has_scale || has_scale_fallback;
+			// Global tracks always use sequence zero, independently of the selected emote.
+			const translation = boneTrack(anim_bone?.translation, effective_anim_idx, effective_time_ms, this.global_seq_times);
+			const rotation = boneTrack(anim_bone?.rotation, effective_anim_idx, effective_time_ms, this.global_seq_times);
+			const scale = boneTrack(anim_bone?.scale, effective_anim_idx, effective_time_ms, this.global_seq_times);
+			const has_animation = translation || rotation || scale;
 
 			// start with identity
 			mat4_copy(local_mat, IDENTITY_MAT4);
@@ -973,10 +982,8 @@ class M2RendererGL {
 				mat4_copy(local_mat, temp_result);
 
 				// apply translation (raw animation offset from anim_bone data)
-				if (has_trans) {
-					const ts = anim_bone.translation.timestamps[effective_anim_idx];
-					const vals = anim_bone.translation.values[effective_anim_idx];
-					const [tx, ty, tz] = this._sample_raw_vec3(ts, vals, effective_time_ms);
+				if (translation) {
+					const [tx, ty, tz] = this._sample_raw_vec3(translation.timestamps, translation.values, translation.time);
 
 					mat4_from_translation(trans_mat, tx, ty, tz);
 					mat4_multiply(temp_result, local_mat, trans_mat);
@@ -984,23 +991,17 @@ class M2RendererGL {
 				}
 
 				// apply rotation
-				if (has_rot) {
-					const ts = anim_bone.rotation.timestamps[effective_anim_idx];
-					const vals = anim_bone.rotation.values[effective_anim_idx];
-					const [qx, qy, qz, qw] = this._sample_raw_quat(ts, vals, effective_time_ms);
+				if (rotation) {
+					const [qx, qy, qz, qw] = this._sample_raw_quat(rotation.timestamps, rotation.values, rotation.time);
 
 					mat4_from_quat(rot_mat, qx, qy, qz, qw);
 					mat4_multiply(temp_result, local_mat, rot_mat);
 					mat4_copy(local_mat, temp_result);
 				}
 
-				// apply scale (fallback to animation 0 if current animation lacks scale data)
-				if (has_scale || has_scale_fallback) {
-					const scale_anim_idx = has_scale ? effective_anim_idx : 0;
-					const ts = anim_bone.scale.timestamps[scale_anim_idx];
-					const vals = anim_bone.scale.values[scale_anim_idx];
-					const scale_time = has_scale ? effective_time_ms : 0;
-					const [sx, sy, sz] = this._sample_raw_vec3(ts, vals, scale_time, [1, 1, 1]);
+				// apply scale
+				if (scale) {
+					const [sx, sy, sz] = this._sample_raw_vec3(scale.timestamps, scale.values, scale.time, [1, 1, 1]);
 
 					mat4_from_scale(scale_mat, sx, sy, sz);
 					mat4_multiply(temp_result, local_mat, scale_mat);
@@ -1498,7 +1499,9 @@ class M2RendererGL {
 		shader.set_uniform_1f('u_time', performance.now() * 0.001);
 
 		const ubo = this.ubos[0];
-		const bone_count = this.bones ? Math.min(this.bones.length, this.bone_matrices.length / 16) : 0;
+		const bone_count = this.bones ? Math.min(this.bones.length, this._gpu_bone_matrices.length / 16) : 0;
+		if (this.bone_matrices !== this._gpu_bone_matrices)
+			this._gpu_bone_matrices.set(this.bone_matrices.subarray(0, bone_count * 16));
 		shader.set_uniform_1i('u_bone_count', bone_count);
 		if (bone_count)
 			ubo.ubo.upload_range(ubo.offsets[0], bone_count * 16 * 4);
@@ -1860,7 +1863,7 @@ class M2RendererGL {
 			return null;
 
 		const bone_idx = attachment.bone;
-		if (bone_idx < 0 || !this.bone_matrices)
+		if (bone_idx < 0 || !this.bone_matrices || (bone_idx + 1) * 16 > this.bone_matrices.length)
 			return null;
 
 		// get bone world matrix (includes rotation from animation)

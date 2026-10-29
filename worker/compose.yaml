@@ -1,0 +1,20 @@
+services:
+  worker:
+    build:
+      context: ..
+      dockerfile: worker/Dockerfile
+    image: wow-export-character-worker:local
+    init: false
+    shm_size: 512mb
+    mem_limit: 8g
+    cpus: 4
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - ./data:/work
+      - asset-cache:/cache
+    environment:
+      WORKER_TIMEOUT_MS: 600000
+    restart: "no"
+volumes:
+  asset-cache:

@@ -122,6 +122,7 @@ let current_char_component_texture_layout_id = 0;
 let default_model_file_data_id = 0;
 let watcher_cleanup_funcs = [];
 let is_importing = false;
+let worker_mode = false;
 let auto_select_in_progress = false;
 
 // thumbnail camera presets by race_id, then gender (0=male, 1=female)
@@ -673,9 +674,9 @@ async function update_equipment_models(core) {
 			attachment_ids = [ATTACHMENT_ID.HAND_LEFT];
 
 		// split models into attachment vs collection
-		// attachment models: up to attachment_ids.length models get attached
-		// collection models: remaining models render at origin with shared bones
-		const attachment_model_count = Math.min(display.models.length, attachment_ids.length);
+		// extra rigid pieces share the slot attachment
+		// body-fitted meshes use shared bones even in attachment slots
+		const attachment_model_count = attachment_ids.length > 0 ? display.models.length : 0;
 		const collection_start_index = attachment_model_count;
 
 		// load attachment models
@@ -683,15 +684,26 @@ async function update_equipment_models(core) {
 			const renderers = [];
 			for (let i = 0; i < attachment_model_count; i++) {
 				const file_data_id = display.models[i];
-				const attachment_id = attachment_ids[i];
+				const attachment_id = attachment_ids[Math.min(i, attachment_ids.length - 1)];
 
 				try {
 					const file = await core.view.casc.getFile(file_data_id);
 					const renderer = new M2RendererGL(file, gl_context, false, false);
 					await renderer.load();
 
-					const is_collection_style = false;
-
+					const is_collection_style = require('../3D/character-skeleton').usesCharacterSkeleton(renderer.m2, renderer.bones, active_renderer?.bones);
+					if (is_collection_style) renderer.buildBoneRemapTable(active_renderer.bones);
+					// Body-fitted armor keeps the same visibility mask as collection slots.
+					if (is_collection_style && slot_id !== 15) {
+						const mapping = get_slot_geoset_mapping(slot_id);
+						if (mapping && display.attachmentGeosetGroup) {
+							renderer.hideAllGeosets();
+							for (const group of mapping) {
+								const value = display.attachmentGeosetGroup[group.group_index];
+								if (value !== undefined) renderer.setGeosetGroupDisplay(group.char_geoset, 1 + value);
+							}
+						}
+					}
 					// apply textures
 					if (display.textures)
 						await renderer.applyReplaceableTextures({ textures: display.textures });
@@ -700,6 +712,7 @@ async function update_equipment_models(core) {
 					log.write('Loaded attachment model %d for slot %d attachment %d (item %d)', file_data_id, slot_id, attachment_id, item_id);
 				} catch (e) {
 					log.write('Failed to load attachment model %d: %s', file_data_id, e.message);
+					if (worker_mode) throw e;
 				}
 			}
 
@@ -723,6 +736,18 @@ async function update_equipment_models(core) {
 					if (active_renderer?.bones)
 						renderer.buildBoneRemapTable(active_renderer.bones);
 
+					// Record unsupported collection fitting instead of silently treating index fallback as a match.
+					if (worker_mode && active_renderer?.bones && renderer.bones) {
+						const used = new Set();
+						for (let b = 0; b < renderer.m2.boneIndices.length; b++)
+							if (renderer.m2.boneWeights[b] > 0) used.add(renderer.m2.boneIndices[b]);
+						const unmatched = [...used].filter(index => {
+							const bone = renderer.bones[index];
+							return !bone || !active_renderer.bones.some(target => bone.pivot.every((value, axis) => Math.abs(value - target.pivot[axis]) < 0.0001));
+						});
+						if (unmatched.length)
+							log.write('Missing matching collection bones: slot %d, item %d, model %d (%s) has %d/%d weighted bones using index fallback', slot_id, item_id, file_data_id, listfile.getByID(file_data_id), unmatched.length, used.size);
+					}
 					// apply geoset visibility using attachmentGeosetGroup
 					const slot_geosets = get_slot_geoset_mapping(slot_id);
 
@@ -743,6 +768,7 @@ async function update_equipment_models(core) {
 					log.write('Loaded collection model %d for slot %d (item %d)', file_data_id, slot_id, item_id);
 				} catch (e) {
 					log.write('Failed to load collection model %d: %s', file_data_id, e.message);
+					if (worker_mode) throw e;
 				}
 			}
 
@@ -809,6 +835,7 @@ async function update_skinned_models(core) {
 				log.write('Loaded skinned model %d', file_data_id);
 			} catch (e) {
 				log.write('Failed to load skinned model %d: %s', file_data_id, e.message);
+					if (worker_mode) throw e;
 				continue;
 			}
 		}
@@ -933,6 +960,7 @@ async function load_character_model(core, file_data_id) {
 	} catch (e) {
 		core.setToast('error', 'Unable to load model ' + file_data_id, { 'View log': () => log.openRuntimeLog() }, -1);
 		log.write('Failed to load character model: %s', e.message);
+		if (worker_mode) throw e;
 	}
 
 	core.view.chrModelLoading = false;
@@ -1267,7 +1295,7 @@ async function import_wowhead_character(core) {
  * Mutates the provided objects in-place.
  */
 function expand_shoulder_slots(equipment, equipment_skins) {
-	if (equipment[SHOULDER_SLOT_L] !== undefined) {
+	if (equipment[SHOULDER_SLOT_L] !== undefined && equipment[SHOULDER_SLOT_R] === undefined) {
 		equipment[SHOULDER_SLOT_R] = equipment[SHOULDER_SLOT_L];
 
 		if (equipment_skins[SHOULDER_SLOT_L] !== undefined)
@@ -1320,16 +1348,7 @@ async function apply_import_data(core, data, source) {
 				customizations.push({ optionID: customization_entry.option.id, choiceID: customization_entry.choice.id });
 		}
 
-		equipment = {};
-		if (data.items && Array.isArray(data.items)) {
-			for (const item of data.items) {
-				const slot_id = item.internal_slot_id + 1;
-				equipment[slot_id] = item.id;
-
-				if (item.item_appearance_modifier_id)
-					equipment_skins[slot_id] = item.item_appearance_modifier_id;
-			}
-		}
+		({ equipment, equipment_skins } = require('../worker/job').appearanceEquipment(data.items));
 
 		if (data.guild_crest) {
 			const crest = data.guild_crest;
@@ -1407,7 +1426,7 @@ async function apply_import_data(core, data, source) {
 		equipment = data.equipment || {};
 	}
 
-	// external imports always set both shoulders from a single shoulder slot
+	// Expand legacy single-shoulder imports, preserving independent shoulders.
 	expand_shoulder_slots(equipment, equipment_skins);
 
 	is_importing = true;
@@ -1424,6 +1443,7 @@ async function apply_import_data(core, data, source) {
 		core.view.chrImportTargetModelID = chr_model_id;
 
 		core.view.chrCustRaceSelection = [core.view.chrCustRaces.find(e => e.id === race_id)];
+		if (worker_mode) update_chr_model_list(core);
 
 		await update_model_selection(core);
 	} finally {
@@ -1887,7 +1907,8 @@ function update_chr_race_list(core) {
 
 		const chr_models = chr_race_x_chr_model_map.get(chr_race_id);
 		for (const chr_model_id of chr_models.values()) {
-			if (listed_model_ids.includes(chr_model_id))
+			// Imports address a race ID, including faction variants sharing a model.
+			if (!worker_mode && listed_model_ids.includes(chr_model_id))
 				continue;
 
 			listed_model_ids.push(chr_model_id);
@@ -1922,6 +1943,7 @@ function update_chr_race_list(core) {
 
 //region export
 const export_char_model = async (core) => {
+	let export_error;
 	const export_paths = core.openLastExportStream();
 	const format = core.view.config.exportCharacterFormat;
 
@@ -2056,6 +2078,12 @@ const export_char_model = async (core) => {
 
 			exporter.setGeosetMask(core.view.chrCustGeosets);
 
+			// Local collectibles bake a fixed pose; desktop exports retain their rig.
+			if (worker_mode) {
+				const baked = active_renderer.getBakedGeometry();
+				exporter.setPosedGeometry(baked.vertices, baked.normals);
+			}
+
 			// collect equipment models for GLTF export (with bone data for rigging)
 			const char_exporter = new CharacterExporter(
 				active_renderer,
@@ -2068,8 +2096,8 @@ const export_char_model = async (core) => {
 				const char_info = get_current_race_gender(core);
 				const equipment_data = [];
 
-				// for GLTF, don't apply pose - let the armature handle it
-				for (const geom of char_exporter.get_equipment_geometry(false)) {
+				// Worker GLBs include posed attachments and need no character skeleton.
+				for (const geom of char_exporter.get_equipment_geometry(worker_mode)) {
 					const display = DBItemModels.getItemDisplay(geom.item_id, char_info?.raceID, char_info?.genderIndex, geom.modifier_id);
 					const textures = display?.textures || [];
 
@@ -2081,8 +2109,8 @@ const export_char_model = async (core) => {
 						normals: geom.normals,
 						uv: geom.uv,
 						uv2: geom.uv2,
-						boneIndices: geom.boneIndices,
-						boneWeights: geom.boneWeights,
+						boneIndices: worker_mode ? null : geom.boneIndices,
+						boneWeights: worker_mode ? null : geom.boneWeights,
 						textures,
 						is_collection_style: geom.is_collection_style
 					});
@@ -2103,10 +2131,12 @@ const export_char_model = async (core) => {
 		}
 	} catch (e) {
 		helper.mark(file_name, false, e.message, e.stack);
+		export_error = e;
 	}
 
 	helper.finish();
 	export_paths?.close();
+	if (worker_mode && export_error) throw export_error;
 };
 
 const export_chr_texture = async (core) => {
@@ -2195,6 +2225,68 @@ function get_selected_choice(core, option_id) {
 //region template
 module.exports = {
 	get_default_characters_dir,
+
+	// Worker entry points deliberately avoid mounting the desktop tab and its
+	// asynchronous selection watchers. One job owns this module's state at a time.
+	async initializeWorker(core, context) {
+		gl_context = context;
+		core.view.chrModelViewerContext = { gl_context: context, controls: null };
+		for (const cache of [DBCharacterCustomization, DBItems, DBItemCharTextures, DBItemGeosets, DBItemModels, DBGuildTabard])
+			await cache.ensureInitialized();
+	},
+	async exportWorker(core, appearance, pose = { animationId: 0, variation: 0, timeMs: 0 }, weapons = "held", form) {
+		if (worker_mode) throw new Error('Character worker is already exporting');
+		worker_mode = true;
+		try {
+			reset_module_state();
+			if (form === 'cat') return await require('../worker/export-druid-form')(core, appearance, pose, gl_context);
+			core.view.chrCustRaceSelection = [];
+			core.view.chrCustModelSelection = [];
+			core.view.chrImportLoadVisage = false;
+			core.view.config.chrIsDemonHunter = appearance.playable_class.id === 12;
+			core.view.chrCustBakedNPCTexture = null;
+			core.view.chrGuildTabardConfig = { background: 0, border_style: 0, border_color: 0, emblem_design: 0, emblem_color: 0 };
+			update_chr_race_list(core);
+			await apply_import_data(core, appearance, 'bnet');
+			if (!active_model || !active_renderer?.m2) throw new Error('Character model did not load');
+			await refresh_character_appearance(core);
+			const animations = (active_renderer.skelLoader || active_renderer.m2).animations || [];
+			const poses = animations.map(animation => ({ animationId: animation.id, variation: animation.variationIndex, name: require('../3D/AnimMapper').get_anim_name(animation.id), durationMs: animation.duration }));
+			const index = animations.findIndex(animation => animation.id === pose.animationId && animation.variationIndex === (pose.variation ?? 0));
+			if (index < 0) throw new Error('Requested animation/variation is unavailable for this character');
+			const timeMs = pose.timeMs ?? 0;
+			if (timeMs > 0 && timeMs >= animations[index].duration) throw new Error('Pose time must be less than the animation duration');
+			const weaponPlacement = [];
+			for (const slot of [16, 17]) {
+				const entry = equipment_model_renderers.get(slot);
+				if (!entry) continue;
+				const item = DBItems.getItemById(entry.item_id);
+				const target = require('../wow/weapon-sheath')(slot, item?.sheatheType);
+				if (weapons === 'sheathed') {
+					if (target === null) {
+						for (const { renderer } of entry.renderers) renderer.dispose();
+						equipment_model_renderers.delete(slot);
+					} else {
+						if (!active_renderer.getAttachmentTransform(target))
+							throw new Error('Missing sheath attachment ' + target + ' for slot ' + slot);
+						for (const part of entry.renderers) part.attachment_id = target;
+					}
+				}
+				weaponPlacement.push({ slot, itemID: entry.item_id, sheatheType: item?.sheatheType, attachmentID: weapons === 'sheathed' ? target : entry.renderers[0]?.attachment_id, visible: weapons === 'held' || target !== null });
+			}
+			const heldParts = [...equipment_model_renderers.entries()].filter(([slot]) => slot === 16 || slot === 17).flatMap(([, entry]) => entry.renderers);
+			active_renderer.setHandGrip(heldParts.some(p => p.attachment_id === ATTACHMENT_ID.HAND_RIGHT), heldParts.some(p => p.attachment_id === ATTACHMENT_ID.HAND_LEFT));
+			await active_renderer.playAnimation(index);
+			active_renderer.updateAnimation(timeMs / 1000);
+			await export_char_model(core);
+			return { pose: { ...poses[index], timeMs }, weapons, weaponPlacement, poses, modelFileDataId: active_model, choices: [...core.view.chrCustActiveChoices], equipment: { ...core.view.chrEquippedItems }, modifiers: { ...core.view.chrEquippedItemSkins } };
+		} finally {
+			reset_module_state();
+			core.view.chrModelLoading = false;
+			worker_mode = false;
+		}
+	},
+
 
 	register() {
 		this.registerNavButton('Characters', 'person-solid.svg', InstallType.CASC);

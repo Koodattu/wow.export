@@ -1,0 +1,182 @@
+{
+  "id": "community-posed-005",
+  "title": "Community Series 001",
+  "characters": [
+    {
+      "id": "roidy",
+      "name": "Röidy",
+      "realm": "kazzak",
+      "pose": {
+        "animationId": 68,
+        "variation": 0,
+        "timeMs": 900
+      },
+      "weapons": "held"
+    },
+    {
+      "id": "yolobolt",
+      "name": "Yolobolt",
+      "realm": "kazzak",
+      "pose": {
+        "animationId": 74,
+        "variation": 0,
+        "timeMs": 1200
+      },
+      "weapons": "held"
+    },
+    {
+      "id": "laku",
+      "name": "Laku",
+      "realm": "stormreaver",
+      "pose": {
+        "animationId": 97,
+        "variation": 0,
+        "timeMs": 750
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "melice",
+      "name": "Melice",
+      "realm": "kazzak",
+      "pose": {
+        "animationId": 70,
+        "variation": 0,
+        "timeMs": 1100
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "vesipuhveli",
+      "name": "Vesipuhveli",
+      "realm": "khadgar",
+      "pose": {
+        "animationId": 82,
+        "variation": 0,
+        "timeMs": 1000
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "turrilol",
+      "name": "Turrilol",
+      "realm": "kazzak",
+      "pose": {
+        "animationId": 69,
+        "variation": 0,
+        "timeMs": 2500
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "karstinen",
+      "name": "Karstinen",
+      "realm": "tarren-mill",
+      "pose": {
+        "animationId": 113,
+        "variation": 0,
+        "timeMs": 800
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "manfromsand",
+      "name": "Manfromsand",
+      "realm": "stormreaver",
+      "pose": {
+        "animationId": 84,
+        "variation": 0,
+        "timeMs": 900
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "stablol",
+      "name": "Stablol",
+      "realm": "kazzak",
+      "pose": {
+        "animationId": 73,
+        "variation": 0,
+        "timeMs": 900
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "suursmurffi",
+      "name": "Suursmurffi",
+      "realm": "kazzak",
+      "pose": {
+        "animationId": 83,
+        "variation": 0,
+        "timeMs": 1800
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "rmp",
+      "name": "Rmp",
+      "realm": "outland",
+      "pose": {
+        "animationId": 1260,
+        "variation": 0,
+        "timeMs": 2000
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "rhagy",
+      "name": "Rhagy",
+      "realm": "kazzak",
+      "pose": {
+        "animationId": 74,
+        "variation": 0,
+        "timeMs": 1400
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "boxx",
+      "name": "Boxx",
+      "realm": "stormreaver",
+      "pose": {
+        "animationId": 68,
+        "variation": 0,
+        "timeMs": 400
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "abiw",
+      "name": "Abiw",
+      "realm": "kazzak",
+      "pose": {
+        "animationId": 82,
+        "variation": 0,
+        "timeMs": 1000
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "chipie",
+      "name": "Chipie",
+      "realm": "stormreaver",
+      "pose": {
+        "animationId": 76,
+        "variation": 0,
+        "timeMs": 900
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "ovelakettu",
+      "name": "Ovelakettu",
+      "realm": "Kazzak",
+      "pose": {
+        "animationId": 1260,
+        "variation": 0,
+        "timeMs": 1600
+      },
+      "weapons": "sheathed"
+    }
+  ]
+}

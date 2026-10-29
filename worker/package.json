@@ -1,0 +1,13 @@
+{
+  "name": "wow-export-worker",
+  "version": "0.2.19",
+  "main": "src/worker.html",
+  "chromium-args": "--mixed-context --enable-node-worker --disable-raf-throttling --password-store=basic",
+  "window": {
+    "show": false,
+    "width": 512,
+    "height": 512
+  },
+  "flavour": "linux-x64-worker",
+  "guid": "local-worker"
+}

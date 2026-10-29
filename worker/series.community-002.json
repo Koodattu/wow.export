@@ -1,0 +1,183 @@
+{
+  "id": "community-002-posed-004",
+  "title": "Community Series 002",
+  "characters": [
+    {
+      "id": "ajotettu",
+      "name": "Ajotettu",
+      "realm": "draenor",
+      "pose": {
+        "animationId": 74,
+        "variation": 0,
+        "timeMs": 1000
+      },
+      "weapons": "held"
+    },
+    {
+      "id": "eppugrip",
+      "name": "Eppugrip",
+      "realm": "stormreaver",
+      "pose": {
+        "animationId": 67,
+        "variation": 0,
+        "timeMs": 700
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "zetabeach",
+      "name": "Zetabeach",
+      "realm": "stormreaver",
+      "pose": {
+        "animationId": 69,
+        "variation": 0,
+        "timeMs": 500
+      },
+      "weapons": "sheathed",
+      "form": "cat"
+    },
+    {
+      "id": "np",
+      "name": "Np",
+      "realm": "spinebreaker",
+      "pose": {
+        "animationId": 83,
+        "variation": 0,
+        "timeMs": 1100
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "zetacmi",
+      "name": "Zetacmi",
+      "realm": "kazzak",
+      "pose": {
+        "animationId": 68,
+        "variation": 0,
+        "timeMs": 700
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "hirvihotline",
+      "name": "Hirvihotline",
+      "realm": "stormreaver",
+      "pose": {
+        "animationId": 84,
+        "variation": 0,
+        "timeMs": 700
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "tonza",
+      "name": "Tonza",
+      "realm": "die-silberne-hand",
+      "pose": {
+        "animationId": 82,
+        "variation": 0,
+        "timeMs": 800
+      },
+      "weapons": "held"
+    },
+    {
+      "id": "thrusbard",
+      "name": "Thrusbard",
+      "realm": "kazzak",
+      "pose": {
+        "animationId": 113,
+        "variation": 0,
+        "timeMs": 700
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "jampton",
+      "name": "Jampton",
+      "realm": "kazzak",
+      "pose": {
+        "animationId": 68,
+        "variation": 0,
+        "timeMs": 900
+      },
+      "weapons": "held"
+    },
+    {
+      "id": "morinicar",
+      "name": "Morinicar",
+      "realm": "kazzak",
+      "pose": {
+        "animationId": 74,
+        "variation": 0,
+        "timeMs": 900
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "mightyhuu",
+      "name": "Mightyhuu",
+      "realm": "kazzak",
+      "pose": {
+        "animationId": 70,
+        "variation": 0,
+        "timeMs": 800
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "kuurankukka",
+      "name": "Kuurankukká",
+      "realm": "twisting-nether",
+      "pose": {
+        "animationId": 76,
+        "variation": 0,
+        "timeMs": 700
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "ragge",
+      "name": "Raggè",
+      "realm": "twisting-nether",
+      "pose": {
+        "animationId": 97,
+        "variation": 0,
+        "timeMs": 700
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "chipi",
+      "name": "Chipi",
+      "realm": "stormreaver",
+      "pose": {
+        "animationId": 67,
+        "variation": 0,
+        "timeMs": 900
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "preazhy",
+      "name": "Preazhy",
+      "realm": "draenor",
+      "pose": {
+        "animationId": 97,
+        "variation": 0,
+        "timeMs": 750
+      },
+      "weapons": "sheathed"
+    },
+    {
+      "id": "mullinmallin",
+      "name": "Mullinmallin",
+      "realm": "kazzak",
+      "pose": {
+        "animationId": 82,
+        "variation": 0,
+        "timeMs": 900
+      },
+      "weapons": "held"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');
+const {raceChain,selectModel}=require('../src/js/db/caches/component-model-selection');
+const races=new Map([[86,{FemaleModelFallbackRaceID:4,FemaleModelFallbackSex:1}]]);
+const info=new Map([[4692107,{raceID:10,genderIndex:0}],[4692123,{raceID:4,genderIndex:0}],[4692124,{raceID:4,genderIndex:1}],[7214253,{raceID:4,genderIndex:1}]]);
+test('Haranir female uses the recorded Night Elf female boot and cloak fallback',()=>{const chain=raceChain(86,1,races);assert.deepEqual(chain,[{race:86,gender:1},{race:4,gender:1}]);assert.equal(selectModel([4692107,4692123,4692124],info,chain),4692124);assert.equal(selectModel([4692107,7214253],info,chain),7214253);});
+test('exact race wins, unsupported components never use an arbitrary first entry',()=>{const exact=new Map(info);exact.set(99,{raceID:86,genderIndex:1});assert.equal(selectModel([4692107,4692124,99],exact,raceChain(86,1,races)),99);assert.equal(selectModel([4692107],info,raceChain(86,1,races)),null);assert.equal(selectModel([101],info,raceChain(86,1,races)),101);});
+test('fallback body type, chained fallback, neutral models and cycles are respected',()=>{const r=new Map([[1,{FemaleModelFallbackRaceID:2,FemaleModelFallbackSex:0}],[2,{MaleModelFallbackRaceID:1,MaleModelFallbackSex:1}]]);assert.deepEqual(raceChain(1,1,r),[{race:1,gender:1},{race:2,gender:0}]);assert.equal(selectModel([1,2],new Map([[1,{raceID:0,genderIndex:0}],[2,{raceID:0,genderIndex:2}]]),[{race:3,gender:1}]),2);});

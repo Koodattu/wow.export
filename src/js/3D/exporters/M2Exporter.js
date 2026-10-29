@@ -266,7 +266,8 @@ class M2Exporter {
 		const gltf = new GLTFWriter(out, model_name);
 		log.write('Exporting M2 model %s as %s: %s', model_name, format.toUpperCase(), outGLTF);
 
-		if (this.m2.skeletonFileID) {
+		// Posed collectible geometry is already in model space; omit skinning.
+		if (!this.posedVertices && this.m2.skeletonFileID) {
 			const skel_file = await core.view.casc.getFile(this.m2.skeletonFileID);
 			const skel = new SKELLoader(skel_file);
 
@@ -338,7 +339,7 @@ class M2Exporter {
 				gltf.setBonesArray(skel.bones);
 			}
 
-		} else {
+		} else if (!this.posedVertices) {
 			if (core.view.config.modelsExportAnimations) {
 				await this.m2.loadAnims();
 				gltf.setAnimations(this.m2.animations);
@@ -347,8 +348,8 @@ class M2Exporter {
 			gltf.setBonesArray(this.m2.bones);
 		}
 
-		gltf.setVerticesArray(this.m2.vertices);
-		gltf.setNormalArray(this.m2.normals);
+		gltf.setVerticesArray(this.posedVertices || this.m2.vertices);
+		gltf.setNormalArray(this.posedNormals || this.m2.normals);
 		gltf.setBoneWeightArray(this.m2.boneWeights);
 		gltf.setBoneIndexArray(this.m2.boneIndices)
 
@@ -391,7 +392,7 @@ class M2Exporter {
 					matName = textureMap.get(dataTextureKey).matName;
 			}
 
-			gltf.addMesh(GeosetMapper.getGeosetName(mI, mesh.submeshID), indices, matName);
+			gltf.addMesh(GeosetMapper.getGeosetName(mI, mesh.submeshID), indices, matName, this.m2.materials[texUnit?.materialIndex]);
 		}
 
 		// add equipment models for GLTF export
@@ -399,6 +400,11 @@ class M2Exporter {
 			for (const equip of this.equipmentModelsGLTF) {
 				await this._addEquipmentToGLTF(gltf, equip, textureMap, outDir, format, helper);
 			}
+		}
+
+		if (this.posedVertices && this.equipmentModelsGLTF) {
+			const support = require("../character-ground")(gltf.vertices, gltf.meshes, gltf.equipment_models);
+			if (support !== null) gltf.sceneExtras = { wowCharacter: { version: 1, ...support } };
 		}
 
 		await gltf.write(core.view.config.overwriteFiles, format);
@@ -427,9 +433,11 @@ class M2Exporter {
 		const config = core.view.config;
 		const equipTextures = new Map();
 
-		if (config.modelsExportTextures && textures) {
-			for (let i = 0; i < textures.length; i++) {
-				const texFileDataID = textures[i];
+		if (config.modelsExportTextures) {
+			// Fixed textures live on the M2 itself, not in the item-display replacements.
+			const exportTextures = [...(textures || []), ...m2.textures.map(texture => texture.fileDataID)];
+			for (let i = 0; i < exportTextures.length; i++) {
+				const texFileDataID = exportTextures[i];
 				if (!texFileDataID || texFileDataID <= 0)
 					continue;
 
@@ -522,12 +530,14 @@ class M2Exporter {
 			meshes.push({
 				name: `${mesh_idx++}`,
 				triangles,
+				materialOptions: m2.materials[texUnit?.materialIndex],
 				matName
 			});
 		}
 
 		// add equipment to GLTF
 		gltf.addEquipmentModel({
+			slotID: slot_id,
 			name: `${slot_name}_Item${item_id}`,
 			vertices: vertices,
 			normals: normals,

@@ -1,0 +1,16 @@
+{
+  "id": "series-001",
+  "title": "Collectibles — Series 1",
+  "characters": [
+    {
+      "id": "roidy",
+      "name": "röidy",
+      "realm": "kazzak",
+      "pose": {
+        "animationId": 0,
+        "variation": 0,
+        "timeMs": 0
+      }
+    }
+  ]
+}
