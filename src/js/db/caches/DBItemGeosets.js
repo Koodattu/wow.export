@@ -304,6 +304,8 @@ const calculate_equipment_geosets = (equipped_items, item_skins) => {
 
 		for (const entry of mapping) {
 			const group_value = geoset_data.geosetGroup[entry.group_index] || 0;
+			// Negative foot values preserve the default/customized bare feet.
+			if (entry.special_feet && group_value < 0) continue;
 			const char_geoset = entry.char_geoset;
 
 			// calculate the value to use (WMV uses 1 + geosetGroup[n] for most)
@@ -393,8 +395,10 @@ const get_affected_char_geosets = (equipped_items, item_skins) => {
 		if (!geoset_data)
 			continue;
 
-		for (const entry of mapping)
+		for (const entry of mapping) {
+			if (entry.special_feet && geoset_data.geosetGroup[entry.group_index] < 0) continue;
 			affected.add(entry.char_geoset);
+		}
 	}
 
 	return affected;
@@ -428,6 +432,8 @@ const calculate_equipment_geosets_by_display = (slot_display_map) => {
 
 		for (const entry of mapping) {
 			const group_value = geoset_data.geosetGroup[entry.group_index] || 0;
+			// Negative foot values preserve the default/customized bare feet.
+			if (entry.special_feet && group_value < 0) continue;
 			const char_geoset = entry.char_geoset;
 
 			let value;
@@ -481,8 +487,10 @@ const get_affected_char_geosets_by_display = (slot_display_map) => {
 		if (!geoset_data)
 			continue;
 
-		for (const entry of mapping)
+		for (const entry of mapping) {
+			if (entry.special_feet && geoset_data.geosetGroup[entry.group_index] < 0) continue;
 			affected.add(entry.char_geoset);
+		}
 	}
 
 	return affected;

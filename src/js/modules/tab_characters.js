@@ -397,7 +397,7 @@ function update_geosets(core) {
 function hide_skinned_model_base_geosets(core, geosets) {
 	const covered_groups = new Set();
 	for (const active_choice of core.view.chrCustActiveChoices) {
-		const skinned_models = DBCharacterCustomization.get_skinned_model_for_choice(active_choice.choiceID);
+		const skinned_models = DBCharacterCustomization.get_skinned_model_for_choice(active_choice.choiceID, core.view.chrCustActiveChoices);
 		if (skinned_models === undefined)
 			continue;
 
@@ -413,6 +413,30 @@ function hide_skinned_model_base_geosets(core, geosets) {
 			if (geoset.id >= range_start && geoset.id <= range_end)
 				geoset.checked = false;
 		}
+	}
+}
+
+// Cloaks use a standalone type-2 texture even when the item has no separate M2.
+function get_character_replaceable_textures(core) {
+	const textures = new Map();
+	const cloak = core.view.chrEquippedItems?.[15];
+	if (cloak) {
+		const display = DBItemCharTextures.getDisplayId(cloak, core.view.chrEquippedItemSkins?.[15]);
+		const files = require('../db/caches/DBItemDisplayInfoModelMatRes').getItemDisplayIdTextureFileIds(display);
+		if (files?.[0] > 0) textures.set(2, files[0]);
+	}
+	return textures;
+}
+
+async function apply_export_textures(exporter, core) {
+	for (const [type, material] of chr_materials)
+		exporter.addURITexture(type, material.getURI());
+	// The standalone cloak is not part of the body atlas. Preserve composite
+	// customization layers (e.g. Dracthyr wing colors and markings).
+	const BLPFile = require('../casc/blp');
+	for (const [type, fileDataID] of get_character_replaceable_textures(core)) {
+		const blp = new BLPFile(await core.view.casc.getFile(fileDataID));
+		exporter.addURITexture(type, blp.getDataURL(0b1111));
 	}
 }
 
@@ -589,6 +613,8 @@ async function update_textures(core) {
 
 	// step 5: upload all textures to GPU
 	await character_appearance.upload_textures_to_gpu(active_renderer, chr_materials);
+	for (const [type, fileDataID] of get_character_replaceable_textures(core))
+		await active_renderer.overrideTextureType(type, fileDataID);
 }
 
 /**
@@ -793,7 +819,7 @@ async function update_skinned_models(core) {
 	// (a choice may contribute multiple skinned models / geoset groups)
 	const needed = new Map();
 	for (const active_choice of core.view.chrCustActiveChoices) {
-		const skinned_models = DBCharacterCustomization.get_skinned_model_for_choice(active_choice.choiceID);
+		const skinned_models = DBCharacterCustomization.get_skinned_model_for_choice(active_choice.choiceID, core.view.chrCustActiveChoices);
 		if (skinned_models === undefined)
 			continue;
 
@@ -2009,8 +2035,7 @@ const export_char_model = async (core) => {
 			const data = await casc.getFile(file_data_id);
 			const exporter = new M2Exporter(data, [], file_data_id);
 
-			for (const [chr_model_texture_target, chr_material] of chr_materials)
-				exporter.addURITexture(chr_model_texture_target, chr_material.getURI());
+			await apply_export_textures(exporter, core);
 
 			exporter.setGeosetMask(core.view.chrCustGeosets);
 
@@ -2073,8 +2098,7 @@ const export_char_model = async (core) => {
 			const export_path = ExportHelper.getExportPath(mark_file_name);
 			const exporter = new M2Exporter(data, [], file_data_id);
 
-			for (const [chr_model_texture_target, chr_material] of chr_materials)
-				exporter.addURITexture(chr_model_texture_target, chr_material.getURI());
+			await apply_export_textures(exporter, core);
 
 			exporter.setGeosetMask(core.view.chrCustGeosets);
 

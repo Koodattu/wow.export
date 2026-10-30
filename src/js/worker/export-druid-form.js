@@ -31,6 +31,7 @@ module.exports = async function exportCatForm(core, appearance, pose, context) {
   const exporter = new Exporter(await core.view.casc.getFile(form.modelFileDataId), display.textures, form.modelFileDataId);
   exporter.setGeosetMask(mask);
   exporter.setPosedGeometry(baked.vertices, baked.normals);
+  exporter.setGroundSupport(require('../3D/paw-ground')(renderer.m2, renderer.bones, baked.vertices, skin, mask));
   exporter.setEquipmentModelsGLTF([]); // Record the paw/contact anchor without humanoid equipment.
   await exporter.exportAsGLTF(path.join(core.view.config.exportDirectory,'cat.glb'), {isCancelled:()=>false}, 'glb');
   return {pose:{...poses[index],timeMs},poses,form,modelFileDataId:form.modelFileDataId,weapons:'sheathed',weaponPlacement:[],choices:appearance.customizations,equipment:{},modifiers:{}};

@@ -71,12 +71,13 @@ const _initialize = async () => {
 			choice_to_geoset.set(chr_customization_element_row.ChrCustomizationChoiceID, chr_customization_element_row.ChrCustomizationGeosetID);
 
 		if (chr_customization_element_row.ChrCustomizationSkinnedModelID != 0) {
+			const element = { id: chr_customization_element_row.ChrCustomizationSkinnedModelID, relatedChoiceID: chr_customization_element_row.RelatedChrCustomizationChoiceID };
 			// a single choice may carry multiple skinned-model elements (e.g.
 			// mechagnome legs reference two geoset groups), so accumulate them
 			if (choice_to_skinned_model.has(chr_customization_element_row.ChrCustomizationChoiceID))
-				choice_to_skinned_model.get(chr_customization_element_row.ChrCustomizationChoiceID).push(chr_customization_element_row.ChrCustomizationSkinnedModelID);
+				choice_to_skinned_model.get(chr_customization_element_row.ChrCustomizationChoiceID).push(element);
 			else
-				choice_to_skinned_model.set(chr_customization_element_row.ChrCustomizationChoiceID, [chr_customization_element_row.ChrCustomizationSkinnedModelID]);
+				choice_to_skinned_model.set(chr_customization_element_row.ChrCustomizationChoiceID, [element]);
 
 			unsupported_choices.push(chr_customization_element_row.ChrCustomizationChoiceID);
 		}
@@ -271,19 +272,23 @@ const get_model_texture_layer_map = () => chr_model_texture_layer_map;
 
 const get_texture_file_data_id = (material_resources_id) => tfd_map.get(material_resources_id);
 
-const get_choice_skinned_model = (choice_id) => choice_to_skinned_model.get(choice_id);
+const get_choice_skinned_model = (choice_id) => choice_to_skinned_model.get(choice_id)?.map(element => element.id);
 const get_skinned_model = (id) => chr_cust_skinned_model_map.get(id);
 
 // resolve a choice to its external collection model(s) + geoset(s)
 // (submeshID = type*100+id); a choice may map to multiple skinned models
-const get_skinned_model_for_choice = (choice_id) => {
+const get_skinned_model_for_choice = (choice_id, active_choices) => {
 	const skinned_model_ids = choice_to_skinned_model.get(choice_id);
 	if (skinned_model_ids === undefined)
 		return undefined;
 
 	const result = [];
-	for (const skinned_model_id of skinned_model_ids) {
-		const row = chr_cust_skinned_model_map.get(skinned_model_id);
+	for (const element of skinned_model_ids) {
+		// Decoration variants depend on the chosen horn/body shape. Without
+		// this gate every candidate is exported on top of the selected model.
+		if (active_choices && element.relatedChoiceID && !active_choices.some(choice => choice.choiceID === element.relatedChoiceID))
+			continue;
+		const row = chr_cust_skinned_model_map.get(element.id);
 		if (row === undefined)
 			continue;
 

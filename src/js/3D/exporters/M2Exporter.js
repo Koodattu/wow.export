@@ -43,6 +43,10 @@ class M2Exporter {
 		this.geosetMask = mask;
 	}
 
+	setGroundSupport(support) {
+		this.groundSupport = support;
+	}
+
 	/**
 	 * Set posed geometry to use instead of bind pose
 	 * @param {Float32Array} vertices
@@ -403,7 +407,7 @@ class M2Exporter {
 		}
 
 		if (this.posedVertices && this.equipmentModelsGLTF) {
-			const support = require("../character-ground")(gltf.vertices, gltf.meshes, gltf.equipment_models);
+			const support = this.groundSupport || require("../character-ground")(gltf.vertices, gltf.meshes, gltf.equipment_models);
 			if (support !== null) gltf.sceneExtras = { wowCharacter: { version: 1, ...support } };
 		}
 
@@ -513,8 +517,13 @@ class M2Exporter {
 				const texture = m2.textures[textureIdx];
 				const textureType = m2.textureTypes[textureIdx];
 
-				// check for replaceable texture
-				if (textureType >= 11 && textureType < 14) {
+				// Customization collections share character texture types, not
+				// item-display replacement slots. Never default horns to body skin.
+				const characterTexture = textureMap.get('data-' + textureType) ||
+					(textureType === 8 ? textureMap.get('data-1') : undefined);
+				if ((item_id === null || textureType === 1 || textureType === 8) && characterTexture) {
+					matName = characterTexture.matName;
+				} else if (textureType >= 11 && textureType < 14) {
 					const texInfo = equipTextures.get(textureType - 11);
 					if (texInfo)
 						matName = texInfo.matName;

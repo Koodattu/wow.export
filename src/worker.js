@@ -40,6 +40,7 @@ process.on('uncaughtException', fatal);
 	const GLContext = require('./js/3D/gl/GLContext');
 	const CASCRemote = require('./js/casc/casc-source-remote');
 	const { validateJob, jobId } = require('./js/worker/job');
+	const BLPImage = require('./js/casc/blp');
 	const log = require('./js/log');
 	const exportWarnings = [];
 	const originalWrite = log.write;
@@ -95,6 +96,57 @@ process.on('uncaughtException', fatal);
 	memory('characterTablesReady');
 	clearTimeout(startupTimer);
 	const identity = { build, exporterVersion: nw.App.manifest.version, workerSha256: nodeCrypto.createHash('sha256').update(await fsp.readFile('/app/src/worker.js')).digest('hex'), renderer, startupMs: Math.round(performance.now() - started) };
+	// Texture jobs find BLPs by listfile pattern and/or export named ones as PNG, for website set dressing.
+	const textureJob = async (job, output) => {
+		const search = (job.search ?? []).slice(0, 20), wanted = (job.textures ?? []).slice(0, 64);
+		if (!Array.isArray(search) || !Array.isArray(wanted)) throw new Error('Invalid texture job');
+		if (search.length) {
+			const names = listfile.getFilenamesByExtension(['.blp']).map(fileDataID => listfile.getByID(fileDataID)).filter(Boolean);
+			const found = {};
+			for (const pattern of search) {
+				const expression = new RegExp(String(pattern), 'i');
+				found[pattern] = names.filter(name => expression.test(name)).sort().slice(0, 600);
+			}
+			await writeJSON(path.join(output, 'search.json'), found);
+		}
+		const textures = [];
+		for (const { name, file } of wanted) {
+			if (!/^[a-z0-9-]{1,64}$/.test(name)) throw new Error('Invalid texture name: ' + name);
+			const fileDataID = Number.isSafeInteger(file) ? file : listfile.getByFilename(String(file));
+			if (!fileDataID) throw new Error('Unknown texture: ' + file);
+			const blp = new BLPImage(await casc.getFile(fileDataID));
+			await blp.saveToPNG(path.join(output, name + '.png'));
+			textures.push({ name, file: listfile.getByID(fileDataID) ?? String(fileDataID), fileDataID, width: blp.width, height: blp.height });
+		}
+		return { kind: 'textures', textures, searched: search.length };
+	};
+	// Model jobs find doodad M2s by listfile pattern and/or export named ones as GLB with embedded textures.
+	const modelJob = async (job, output) => {
+		const search = (job.search ?? []).slice(0, 20), wanted = (job.models ?? []).slice(0, 32);
+		if (!Array.isArray(search) || !Array.isArray(wanted)) throw new Error('Invalid model job');
+		if (search.length) {
+			const names = listfile.getFilenamesByExtension(['.m2']).map(fileDataID => listfile.getByID(fileDataID)).filter(Boolean);
+			const found = {};
+			for (const pattern of search) {
+				const expression = new RegExp(String(pattern), 'i');
+				found[pattern] = names.filter(name => expression.test(name)).sort().slice(0, 600);
+			}
+			await writeJSON(path.join(output, 'search.json'), found);
+		}
+		const M2Exporter = require('./js/3D/exporters/M2Exporter');
+		const ExportHelper = require('./js/casc/export-helper');
+		core.view.config.exportDirectory = output;
+		const models = [];
+		for (const { name, file } of wanted) {
+			if (!/^[a-z0-9-]{1,64}$/.test(name)) throw new Error('Invalid model name: ' + name);
+			const fileDataID = Number.isSafeInteger(file) ? file : listfile.getByFilename(String(file));
+			if (!fileDataID) throw new Error('Unknown model: ' + file);
+			const out = path.join(output, name + '.glb');
+			await new M2Exporter(await casc.getFile(fileDataID), undefined, fileDataID).exportAsGLTF(out, new ExportHelper(1, 'model'), 'glb');
+			models.push({ name, file: listfile.getByID(fileDataID) ?? String(fileDataID), fileDataID, bytes: (await fsp.stat(out)).size });
+		}
+		return { kind: 'models', models, searched: search.length };
+	};
 	emit('ready', identity);
 	await writeJSON(path.join(WORK, 'status.json'), { state: 'ready', ...identity });
 	while (true) {
@@ -113,7 +165,15 @@ process.on('uncaughtException', fatal);
 			let result;
 			try {
 				if ((await fsp.stat(claimed)).size > 2 * 1024 * 1024) throw new Error('Job exceeds 2 MB');
-				const input = validateJob(JSON.parse(await fsp.readFile(claimed, 'utf8')));
+				const raw = JSON.parse(await fsp.readFile(claimed, 'utf8'));
+				if (raw?.kind === 'textures' || raw?.kind === 'models') {
+					const output = path.join(WORK, 'results', id);
+					await fsp.mkdir(output);
+					result = { state: 'complete', id, ...identity, ...(await (raw.kind === 'models' ? modelJob : textureJob)(raw, output)), durationMs: Math.round(performance.now() - jobStart), warnings: [...exportWarnings] };
+					await writeJSON(path.join(output, 'result.json'), result);
+					await fsp.rename(claimed, path.join(WORK, 'done', file));
+				} else {
+				const input = validateJob(raw);
 				if (input.expectedBuildConfig && input.expectedBuildConfig !== build.BuildConfig) throw new Error('Job build does not match pinned worker build');
 				const output = path.join(WORK, 'results', id);
 				await fsp.mkdir(output); // Exclusive: job IDs must never overwrite an earlier artifact.
@@ -133,6 +193,7 @@ process.on('uncaughtException', fatal);
 				result = { state: 'complete', id, ...identity, ...detail, durationMs: Math.round(performance.now() - jobStart), bytes: bytes.length, model: models[0], sha256: nodeCrypto.createHash('sha256').update(bytes).digest('hex'), warnings: [...exportWarnings] };
 				await writeJSON(path.join(output, 'result.json'), result);
 				await fsp.rename(claimed, path.join(WORK, 'done', file));
+				}
 			} catch (e) {
 				result = { state: 'failed', id, error: e.stack || e.message, durationMs: Math.round(performance.now() - jobStart), warnings: [...exportWarnings] };
 				await writeJSON(path.join(WORK, 'failed', id + '.result.json'), result);
