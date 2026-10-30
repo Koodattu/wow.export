@@ -2263,10 +2263,11 @@ module.exports = {
 		worker_mode = true;
 		try {
 			reset_module_state();
+			form = require('../worker/job').resolveCharacterForm(appearance, form);
 			if (form === 'cat') return await require('../worker/export-druid-form')(core, appearance, pose, gl_context);
 			core.view.chrCustRaceSelection = [];
 			core.view.chrCustModelSelection = [];
-			core.view.chrImportLoadVisage = false;
+			core.view.chrImportLoadVisage = form === 'visage';
 			core.view.config.chrIsDemonHunter = appearance.playable_class.id === 12;
 			core.view.chrCustBakedNPCTexture = null;
 			core.view.chrGuildTabardConfig = { background: 0, border_style: 0, border_color: 0, emblem_design: 0, emblem_color: 0 };
@@ -2285,8 +2286,8 @@ module.exports = {
 				const entry = equipment_model_renderers.get(slot);
 				if (!entry) continue;
 				const item = DBItems.getItemById(entry.item_id);
-				const target = require('../wow/weapon-sheath')(slot, item?.sheatheType);
-				if (weapons === 'sheathed') {
+				const target = weapons === 'hidden' ? null : require('../wow/weapon-sheath')(slot, item?.sheatheType);
+				if (weapons !== 'held') {
 					if (target === null) {
 						for (const { renderer } of entry.renderers) renderer.dispose();
 						equipment_model_renderers.delete(slot);
@@ -2296,14 +2297,14 @@ module.exports = {
 						for (const part of entry.renderers) part.attachment_id = target;
 					}
 				}
-				weaponPlacement.push({ slot, itemID: entry.item_id, sheatheType: item?.sheatheType, attachmentID: weapons === 'sheathed' ? target : entry.renderers[0]?.attachment_id, visible: weapons === 'held' || target !== null });
+				weaponPlacement.push({ slot, itemID: entry.item_id, sheatheType: item?.sheatheType, attachmentID: weapons !== 'held' ? target : entry.renderers[0]?.attachment_id, visible: weapons === 'held' || target !== null });
 			}
 			const heldParts = [...equipment_model_renderers.entries()].filter(([slot]) => slot === 16 || slot === 17).flatMap(([, entry]) => entry.renderers);
 			active_renderer.setHandGrip(heldParts.some(p => p.attachment_id === ATTACHMENT_ID.HAND_RIGHT), heldParts.some(p => p.attachment_id === ATTACHMENT_ID.HAND_LEFT));
 			await active_renderer.playAnimation(index);
 			active_renderer.updateAnimation(timeMs / 1000);
 			await export_char_model(core);
-			return { pose: { ...poses[index], timeMs }, weapons, weaponPlacement, poses, modelFileDataId: active_model, choices: [...core.view.chrCustActiveChoices], equipment: { ...core.view.chrEquippedItems }, modifiers: { ...core.view.chrEquippedItemSkins } };
+			return { ...(form ? { form: { type: form, modelFileDataId: active_model } } : {}), pose: { ...poses[index], timeMs }, weapons, weaponPlacement, poses, modelFileDataId: active_model, choices: [...core.view.chrCustActiveChoices], equipment: { ...core.view.chrEquippedItems }, modifiers: { ...core.view.chrEquippedItemSkins } };
 		} finally {
 			reset_module_state();
 			core.view.chrModelLoading = false;

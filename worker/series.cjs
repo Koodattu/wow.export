@@ -15,8 +15,8 @@ function validateSeries(value) {
     if (Object.values(pose).some(n => !Number.isSafeInteger(n) || n < 0) || pose.timeMs > 600000)
       throw new Error('Pose requires non-negative integer animationId, variation, and timeMs');
     const weapons = character.weapons ?? 'held';
-    if (!['held', 'sheathed'].includes(weapons)) throw new Error('Weapons must be held or sheathed');
-    if (character.form !== undefined && character.form !== 'cat') throw new Error('Unsupported character form');
+    if (!['held', 'sheathed', 'hidden'].includes(weapons)) throw new Error('Weapons must be held, sheathed, or hidden');
+    if (character.form !== undefined && !['cat', 'visage', 'dracthyr'].includes(character.form)) throw new Error('Unsupported character form');
     return { id: character.id, name, realm, pose, weapons, ...(character.form ? {form:character.form} : {}) };
   });
   return { id: value.id, title: value.title.trim(), characters };

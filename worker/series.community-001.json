@@ -29,11 +29,11 @@
       "name": "Laku",
       "realm": "stormreaver",
       "pose": {
-        "animationId": 97,
+        "animationId": 1260,
         "variation": 0,
-        "timeMs": 750
+        "timeMs": 0
       },
-      "weapons": "sheathed"
+      "weapons": "hidden"
     },
     {
       "id": "melice",

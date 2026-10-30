@@ -54,6 +54,16 @@ series failed. An abrupt process termination can leave a lock or running worker:
 stop the worker, confirm no series-builder process remains, and then remove only
 `worker/data/series-build.lock` before retrying with a new series ID.
 
+## Character forms
+
+Non-Evoker Dracthyr automatically use their saved humanoid visage appearance;
+Evokers use their Dracthyr form. Both factions follow this default. A character
+recipe may set `"form": "dracthyr"` or `"form": "visage"` for an explicit exception.
+These overrides require a Dracthyr character. The existing druid `"form": "cat"`
+option is unchanged. Export provenance records the resolved form and model ID.
+Poses are sampled on the selected form, so animation availability/duration may
+change when switching forms.
+
 ## Poses
 
 Each character entry accepts a frozen animation sample:
@@ -88,11 +98,12 @@ pose-export option remain available.
 ## Curated community series and verification
 
 The versioned selection is `worker/series.community-001.json`: 16 unique EU
-characters with fixed emote timestamps and explicit `weapons: "held" | "sheathed"`.
+characters with fixed emote timestamps and explicit `weapons: "held" | "sheathed" | "hidden"`.
 Use a fresh series ID before rebuilding; previous batch snapshots are immutable.
 Röidy and Yolobolt hold their weapons; most others sheath them. Retail
 Item.SheatheType chooses opposing back/hip or central shield attachments.
-Items with no sheath location are hidden. Player-selected hip/back overrides
+Items with no sheath location are hidden. `hidden` removes both hand weapons
+and opens the hands. Laku uses WALean01 (1260, variation 0) at 0 ms with hidden weapons. Player-selected hip/back overrides
 are not currently read from the appearance API.
 
 The fork now follows ChrRaces sex-specific component fallbacks. Haranir female
