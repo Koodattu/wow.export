@@ -1,5 +1,5 @@
 {
-  "id": "community-posed-005",
+  "id": "community-001-roster-refresh-001",
   "title": "Community Series 001",
   "characters": [
     {
@@ -36,13 +36,13 @@
       "weapons": "hidden"
     },
     {
-      "id": "melice",
-      "name": "Melice",
+      "id": "jannu",
+      "name": "Jannu",
       "realm": "kazzak",
       "pose": {
-        "animationId": 70,
+        "animationId": 84,
         "variation": 0,
-        "timeMs": 1100
+        "timeMs": 900
       },
       "weapons": "sheathed"
     },
@@ -80,13 +80,13 @@
       "weapons": "sheathed"
     },
     {
-      "id": "manfromsand",
-      "name": "Manfromsand",
-      "realm": "stormreaver",
+      "id": "kahvishock",
+      "name": "Kahvishock",
+      "realm": "kazzak",
       "pose": {
-        "animationId": 84,
+        "animationId": 74,
         "variation": 0,
-        "timeMs": 900
+        "timeMs": 1000
       },
       "weapons": "sheathed"
     },
@@ -124,24 +124,24 @@
       "weapons": "sheathed"
     },
     {
-      "id": "rhagy",
-      "name": "Rhagy",
+      "id": "violetmw",
+      "name": "Violetmw",
       "realm": "kazzak",
       "pose": {
-        "animationId": 74,
+        "animationId": 67,
         "variation": 0,
-        "timeMs": 1400
+        "timeMs": 800
       },
       "weapons": "sheathed"
     },
     {
-      "id": "boxx",
-      "name": "Boxx",
-      "realm": "stormreaver",
+      "id": "shippyboi",
+      "name": "Shippyboi",
+      "realm": "outland",
       "pose": {
-        "animationId": 68,
+        "animationId": 113,
         "variation": 0,
-        "timeMs": 400
+        "timeMs": 800
       },
       "weapons": "sheathed"
     },

@@ -1,5 +1,5 @@
 {
-  "id": "community-002-posed-004",
+  "id": "community-002-roster-refresh-001",
   "title": "Community Series 002",
   "characters": [
     {
@@ -158,26 +158,26 @@
       "weapons": "sheathed"
     },
     {
-      "id": "preazhy",
-      "name": "Preazhy",
-      "realm": "draenor",
+      "id": "rookiheal",
+      "name": "Röökiheal",
+      "realm": "kazzak",
       "pose": {
-        "animationId": 97,
+        "animationId": 83,
         "variation": 0,
-        "timeMs": 750
+        "timeMs": 1500
       },
       "weapons": "sheathed"
     },
     {
-      "id": "mullinmallin",
-      "name": "Mullinmallin",
-      "realm": "kazzak",
+      "id": "galardodric",
+      "name": "Galardodric",
+      "realm": "outland",
       "pose": {
-        "animationId": 82,
+        "animationId": 70,
         "variation": 0,
-        "timeMs": 900
+        "timeMs": 1100
       },
-      "weapons": "held"
+      "weapons": "sheathed"
     }
   ]
 }
