@@ -52,9 +52,10 @@ class M2Exporter {
 	 * @param {Float32Array} vertices
 	 * @param {Float32Array} normals
 	 */
-	setPosedGeometry(vertices, normals) {
+	setPosedGeometry(vertices, normals, renderer = null) {
 		this.posedVertices = vertices;
 		this.posedNormals = normals;
+		this.posedRenderer = renderer;
 	}
 
 	/**
@@ -396,6 +397,23 @@ class M2Exporter {
 					matName = textureMap.get(dataTextureKey).matName;
 			}
 
+			// Racial markings can use the same two-UV masked effects as equipment.
+			// Freeze the evaluated texture animation at the chosen collectible pose.
+			const fixedBodyTextures = texUnit && Array.from({ length: texUnit.textureCount }, (_, i) =>
+				this.m2.textureTypes[this.m2.textureCombos[texUnit.textureComboIndex + i]]).every(type => type === 0);
+			if (format === 'glb' && this.posedRenderer && fixedBodyTextures && core.view.config.modelsExportTextures) {
+				const baked = await require('./bake-equipment-effect')(this.posedRenderer, texUnit, indices);
+				if (baked) {
+					const key = `effect-body-${mI}`;
+					textureMap.set(key, { matName: key, matPathRelative: key + '.png', matPath: path.join(outDir, key + '.png') });
+					gltf.texture_buffers.set(key, baked.png);
+					gltf.addEquipmentModel({ slotID: null, name: `Body_Effect${mI}`,
+						vertices: this.posedVertices, normals: this.posedNormals, uv: baked.uv,
+						meshes: [{ name: `${mI}`, triangles: indices, matName: key, materialOptions: this.m2.materials[texUnit.materialIndex] }] });
+					continue;
+				}
+			}
+
 			gltf.addMesh(GeosetMapper.getGeosetName(mI, mesh.submeshID), indices, matName, this.m2.materials[texUnit?.materialIndex]);
 		}
 
@@ -533,6 +551,20 @@ class M2Exporter {
 						matName = texInfo.matName;
 				} else if (texture?.fileDataID > 0 && textureMap.has(texture.fileDataID)) {
 					matName = textureMap.get(texture.fileDataID).matName;
+				}
+			}
+
+			// Freeze two-UV effect combiners into standard glTF textures. Keeping
+			// only texture 1 turns the masked weapon effects into solid sheets.
+			if (format === 'glb' && this.posedVertices && config.modelsExportTextures) {
+				const baked = await require('./bake-equipment-effect')(renderer, texUnit, triangles, textures);
+				if (baked) {
+					const key = `effect-${slot_id}-${item_id}-${mI}`;
+					textureMap.set(key, { matName: key, matPathRelative: key + '.png', matPath: path.join(outDir, key + '.png') });
+					gltf.texture_buffers.set(key, baked.png);
+					gltf.addEquipmentModel({ slotID: slot_id, name: `${slot_name}_Item${item_id}_Effect${mI}`,
+						vertices, normals, uv: baked.uv, meshes: [{ name: `${mI}`, triangles, matName: key, materialOptions: m2.materials[texUnit.materialIndex] }] });
+					continue;
 				}
 			}
 

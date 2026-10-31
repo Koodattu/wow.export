@@ -58,7 +58,7 @@ process.on('uncaughtException', fatal);
 	}
 	Vue.createApp({ data: () => core.makeNewView(), created() { core.view = this; }, template: '<span>Character worker</span>' }).mount('#worker');
 	core.view.config = await generics.readJSON(constants.CONFIG.DEFAULT_PATH, true);
-	Object.assign(core.view.config, { exportCharacterFormat: 'GLB', modelsExportTextures: true, modelsExportAnimations: false, overwriteFiles: false, allowCacheCollection: false, chrIncludeBaseClothing: true });
+	Object.assign(core.view.config, { exportCharacterFormat: 'GLB', modelsExportTextures: true, modelsExportAnimations: false, overwriteFiles: false, allowCacheCollection: false, chrIncludeBaseClothing: 'auto' });
 	core.view.selectedCDNRegion = { tag: 'eu' };
 	core.view.$watch('loadingProgress', (message) => emit('progress', { message }));
 	core.view.$watch('toast', (toast) => { if (toast?.type === 'error') exportWarnings.push(toast.message); });

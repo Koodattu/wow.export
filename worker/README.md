@@ -208,3 +208,30 @@ retaining 2048-pixel/WebP-89 textures instead of lowering quality.
 Equipment GLBs now include fixed texture references from each M2 as well as
 item-display replacements. This repairs Abiw's mop and slippers, and six box-2
 characters, without changing gear or poses.
+
+## Automatic clothing and static weapon effects
+
+Base clothing defaults to `chrIncludeBaseClothing: "auto"`. Top (atlas layer 13)
+and bottom (14) are evaluated independently: a visible chest/leg appearance
+hides underwear in that region, while a hidden/empty slot keeps it. Saved
+boolean preferences still explicitly show/hide both. Desktop users with an old
+saved preference can select **Underwear → Auto (per armor slot)**. Component
+texture selection now applies gender/class filtering to single candidates too;
+missing compatible regions are skipped rather than borrowing another gender's
+texture.
+
+Posed GLB equipment export bakes two-UV Mod_Mod / Mod_Mod2x effect materials into
+RGBA atlases. It preserves texture transforms, wrapping and sampled opacity,
+preventing missing secondary masks from turning effects into solid sheets.
+Repeated/overlapping effect faces retain last-face-wins output without repeatedly
+sampling the same pixels. This does not implement all WoW shaders or
+view-dependent edge fading. New effect families still require visual review.
+Tonzidan and Syöpä were checked in the frontend lab; the optimized baker produced
+byte-identical compressed GLBs in an independent repeat build.
+
+Static body effects also bake supported two-UV Mod/Mod2x combiners when both
+inputs are fixed M2 textures. This preserves Lightforged forehead rune masks and
+their sampled UV animation (Valotettu, body submesh 88). Replacement-texture body
+effects and other shader families retain the existing export path; this is not
+a complete implementation of WoW's effect shaders. Animated desktop GLBs remain
+outside the static-pose baker.

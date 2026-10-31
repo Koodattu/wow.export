@@ -164,6 +164,7 @@ const get_textures_by_display_id = (display_id, race_id = null, gender_index = n
 		const file_data_ids = DBTextureFileData.getTextureFDIDsByMatID(component.materialResourcesID);
 		if (file_data_ids && file_data_ids.length > 0) {
 			const bestFileDataID = DBComponentTextureFileData.getTextureForRaceGender(file_data_ids, race_id, gender_index, class_id);
+			if (bestFileDataID === null) continue;
 			result.push({
 				section: component.section,
 				fileDataID: bestFileDataID

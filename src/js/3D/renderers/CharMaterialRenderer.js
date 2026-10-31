@@ -293,7 +293,7 @@ class CharMaterialRenderer {
 		
 		for (const layer of this.textureTargets) {
 			// hide underwear based on settings (target IDs 13/14 are upper/lower body base clothing)
-			if (!core.view.config.chrIncludeBaseClothing && (layer.id == 13 || layer.id == 14))
+			if (!require('../../wow/base-clothing')(layer.id, core.view.config.chrIncludeBaseClothing, core.view.chrEquippedItems, core.view.chrEquippedItemSkins, require('../../db/caches/DBItemCharTextures').getDisplayId))
 				continue;
 
 			const materialMiddleX = layer.material.Width / 2;

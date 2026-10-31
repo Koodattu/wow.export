@@ -2043,7 +2043,7 @@ const export_char_model = async (core) => {
 			if (apply_pose) {
 				const baked = active_renderer.getBakedGeometry();
 				if (baked)
-					exporter.setPosedGeometry(baked.vertices, baked.normals);
+					exporter.setPosedGeometry(baked.vertices, baked.normals, active_renderer);
 			}
 
 			// collect equipment models for export
@@ -2105,7 +2105,7 @@ const export_char_model = async (core) => {
 			// Local collectibles bake a fixed pose; desktop exports retain their rig.
 			if (worker_mode) {
 				const baked = active_renderer.getBakedGeometry();
-				exporter.setPosedGeometry(baked.vertices, baked.normals);
+				exporter.setPosedGeometry(baked.vertices, baked.normals, active_renderer);
 			}
 
 			// collect equipment models for GLTF export (with bone data for rigging)
@@ -2275,6 +2275,7 @@ module.exports = {
 			await apply_import_data(core, appearance, 'bnet');
 			if (!active_model || !active_renderer?.m2) throw new Error('Character model did not load');
 			await refresh_character_appearance(core);
+
 			const animations = (active_renderer.skelLoader || active_renderer.m2).animations || [];
 			const poses = animations.map(animation => ({ animationId: animation.id, variation: animation.variationIndex, name: require('../3D/AnimMapper').get_anim_name(animation.id), durationMs: animation.duration }));
 			const index = animations.findIndex(animation => animation.id === pose.animationId && animation.variationIndex === (pose.variation ?? 0));
@@ -2466,9 +2467,10 @@ module.exports = {
 						</div>
 					</template>
 					<label class="ui-select-label">
-						<span class="select-prefix"><span class="prefix-label">Underwear:</span> <span class="prefix-value">{{ $core.view.config.chrIncludeBaseClothing ? 'Visible' : 'Hidden' }}</span></span>
-						<select class="ui-select" :value="$core.view.config.chrIncludeBaseClothing" @change="$core.view.config.chrIncludeBaseClothing = $event.target.value === 'true'">
+						<span class="select-prefix"><span class="prefix-label">Underwear:</span> <span class="prefix-value">{{ $core.view.config.chrIncludeBaseClothing === 'auto' ? 'Auto (per armor slot)' : $core.view.config.chrIncludeBaseClothing ? 'Visible' : 'Hidden' }}</span></span>
+						<select class="ui-select" :value="$core.view.config.chrIncludeBaseClothing" @change="$core.view.config.chrIncludeBaseClothing = $event.target.value === 'auto' ? 'auto' : $event.target.value === 'true'">
 							<option value="" disabled selected style="display:none;"></option>
+							<option value="auto">Auto (per armor slot)</option>
 							<option value="true">Visible</option>
 							<option value="false">Hidden</option>
 						</select>

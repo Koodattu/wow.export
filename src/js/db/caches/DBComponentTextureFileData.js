@@ -56,10 +56,6 @@ const getTextureForRaceGender = (file_data_ids, race_id, gender_index, class_id 
 	if (!file_data_ids || file_data_ids.length === 0)
 		return null;
 
-	// single option has no ambiguity
-	if (file_data_ids.length === 1)
-		return file_data_ids[0];
-
 	// fdids without a ComponentTextureFileData entry carry no constraint
 	const candidates = file_data_ids.map(fdid => ({ fdid, info: file_data_to_info.get(fdid) }));
 	if (!candidates.some(c => c.info))
