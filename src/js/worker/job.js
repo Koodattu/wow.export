@@ -9,10 +9,17 @@ function resolveCharacterForm(appearance, form) {
 	if (['visage', 'dracthyr'].includes(form) && !dracthyr) throw new Error('Visage/dracthyr form requires a Dracthyr');
 	return form ?? (dracthyr ? (appearance.playable_class.id === 13 ? 'dracthyr' : 'visage') : undefined);
 }
+function validateWeaponStates(states) {
+	if (states === undefined) return;
+	if (!states || typeof states !== 'object' || Array.isArray(states) ||
+		Object.entries(states).some(([hand, state]) => !['mainHand', 'offHand'].includes(hand) || !['held', 'sheathed', 'hidden'].includes(state)))
+		throw new Error('Invalid per-hand weapon placement');
+}
 function validateJob(input) {
 	if (!input || input.region !== 'eu') throw new Error('region must be eu');
 	if (input.pose !== undefined && (!input.pose || !integer(input.pose.animationId) || !integer(input.pose.variation ?? 0) || !integer(input.pose.timeMs ?? 0) || input.pose.timeMs > 600000)) throw new Error('Invalid pose');
 	if (input.weapons !== undefined && !['held', 'sheathed', 'hidden'].includes(input.weapons)) throw new Error('Invalid weapon placement');
+	validateWeaponStates(input.weaponStates);
 	const a = input.appearance;
 	if (!a || !integer(a.playable_race?.id, 1) || !integer(a.playable_class?.id, 1) || !['MALE', 'FEMALE'].includes(a.gender?.type))
 		throw new Error('Invalid race, class, or gender');
@@ -52,4 +59,4 @@ function jobId(filename) {
 	if (!/^[a-z0-9][a-z0-9_-]{0,63}\.json$/.test(filename)) throw new Error('Job filename must be a unique lowercase ID.json');
 	return filename.slice(0, -5);
 }
-module.exports = { validateJob, appearanceEquipment, jobId, resolveCharacterForm };
+module.exports = { validateJob, appearanceEquipment, jobId, resolveCharacterForm, validateWeaponStates };

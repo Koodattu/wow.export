@@ -22,12 +22,12 @@ test('hidden weapons remove both hand meshes and release the grip, preserving ot
   const start = source.indexOf('const weaponPlacement = [];');
   const end = source.indexOf('await active_renderer.playAnimation(index);', start);
   assert.ok(start > 0 && end > start);
-  for (const weapons of ['hidden', 'held', 'sheathed']) {
+  for (const [weapons, weaponStates] of [['hidden'], ['held'], ['sheathed'], ['held', {offHand: 'sheathed'}], ['sheathed', {mainHand: 'held'}]]) {
     const disposed = [];
     const entries = new Map([3, 16, 17].map(slot => [slot, { item_id: 100 + slot,
       renderers: [{ attachment_id: slot === 16 ? 1 : 2, renderer: { dispose: () => disposed.push(slot) } }] }]));
     let grip;
-    const context = { weapons, equipment_model_renderers: entries,
+    const context = { weapons, weaponStates, equipment_model_renderers: entries,
       DBItems: { getItemById: () => ({ sheatheType: 1 }) },
       require: name => { assert.equal(name, '../wow/weapon-sheath'); return slot => slot + 10; },
       ATTACHMENT_ID: { HAND_RIGHT: 1, HAND_LEFT: 2 },
@@ -35,9 +35,9 @@ test('hidden weapons remove both hand meshes and release the grip, preserving ot
     vm.runInNewContext(source.slice(start, end) + '; result = weaponPlacement;', context);
     assert.ok(entries.has(3));
     assert.deepEqual(disposed, weapons === 'hidden' ? [16, 17] : []);
-    assert.deepEqual(grip, weapons === 'held' ? [true, true] : [false, false]);
+    assert.deepEqual(grip, weaponStates ? [true, false] : weapons === 'held' ? [true, true] : [false, false]);
     assert.deepEqual(Array.from(context.result, item => item.visible), [weapons !== 'hidden', weapons !== 'hidden']);
-    assert.deepEqual(Array.from(context.result, item => item.attachmentID), weapons === 'hidden' ? [null, null] : weapons === 'held' ? [1, 2] : [26, 27]);
+    assert.deepEqual(Array.from(context.result, item => item.attachmentID), weaponStates ? [1, 27] : weapons === 'hidden' ? [null, null] : weapons === 'held' ? [1, 2] : [26, 27]);
     assert.equal(entries.size, weapons === 'hidden' ? 1 : 3);
   }
 });

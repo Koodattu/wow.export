@@ -79,7 +79,7 @@ async function main() {
     for (const character of series.characters) {
       console.log('Building ' + character.id + ' (' + (manifest.characters.length + 1) + '/' + series.characters.length + ')');
       const snapshot = snapshots.get(character.realm + '/' + character.name);
-      const input = validateJob({ region: 'eu', appearance: snapshot.appearance, pose: character.pose, weapons: character.weapons, form: character.form, expectedBuildConfig: status.build.BuildConfig });
+      const input = validateJob({ region: 'eu', appearance: snapshot.appearance, pose: character.pose, weapons: character.weapons, weaponStates: character.weaponStates, form: character.form, expectedBuildConfig: status.build.BuildConfig });
       const id = 'series-' + crypto.randomUUID();
       await save(path.join(data, 'inbox', id + '.json'), input);
       const result = await waitForJob(id);

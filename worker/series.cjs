@@ -1,3 +1,4 @@
+const { validateWeaponStates } = require('../src/js/worker/job');
 function validateSeries(value) {
   const safeID = id => typeof id === 'string' && /^[a-z0-9][a-z0-9_-]{0,39}$/.test(id) && !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(id);
   if (!value || !safeID(value.id) || typeof value.title !== 'string' || !value.title.trim() || value.title.length > 120)
@@ -16,8 +17,9 @@ function validateSeries(value) {
       throw new Error('Pose requires non-negative integer animationId, variation, and timeMs');
     const weapons = character.weapons ?? 'held';
     if (!['held', 'sheathed', 'hidden'].includes(weapons)) throw new Error('Weapons must be held, sheathed, or hidden');
+    validateWeaponStates(character.weaponStates);
     if (character.form !== undefined && !['cat', 'visage', 'dracthyr'].includes(character.form)) throw new Error('Unsupported character form');
-    return { id: character.id, name, realm, pose, weapons, ...(character.form ? {form:character.form} : {}) };
+    return { id: character.id, name, realm, pose, weapons, ...(character.weaponStates ? {weaponStates: {...character.weaponStates}} : {}), ...(character.form ? {form:character.form} : {}) };
   });
   return { id: value.id, title: value.title.trim(), characters };
 }

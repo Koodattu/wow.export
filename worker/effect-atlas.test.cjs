@@ -16,7 +16,7 @@ test('Mod2x combines RGB and alpha, while transformed UV masks use the sampled f
  const translated = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1];
  const shifted = bakeAtlas({ ...quad, textures: [texture([255, 255, 255, 255]), texture([255, 255, 255, 0, 255, 255, 255, 255], 2)], matrices: [null, translated] });
  assert.equal(shifted.pixels[(8 * 16 + 3) * 4 + 3], 255);
- assert.equal(bakeAtlas({ ...quad, uv2: new Array(8).fill(0), textures: [] }), null);
+ assert.equal(bakeAtlas({ ...quad, uv: new Array(8).fill(0), uv2: new Array(8).fill(0), textures: [] }), null);
 });
 test('overlapping and repeated effect faces retain last-face-wins colors', () => {
  const result = bakeAtlas({
@@ -35,4 +35,12 @@ test('racial rune keeps a fixed shape while its first atlas sample scrolls', () 
   textures: [atlas, atlas], matrices: [scroll, null] });
  assert.deepEqual(Array.from(result.pixels.slice((8*16+3)*4,(8*16+3)*4+4)), [240,180,40,255]);
  assert.equal(result.pixels[(8*16+12)*4+3], 0);
+});
+
+test('constant secondary UVs use the primary chart without losing its colors or mask', () => {
+ const result = bakeAtlas({ ...quad, uv2: new Array(8).fill(.5),
+  textures: [texture([255,0,0,255, 0,0,255,255],2), texture([255,255,255,128])] });
+ assert.ok(result);
+ assert.deepEqual(Array.from(result.pixels.slice((8*16+3)*4,(8*16+3)*4+4)), [255,0,0,128]);
+ assert.deepEqual(Array.from(result.pixels.slice((8*16+12)*4,(8*16+12)*4+4)), [0,0,255,128]);
 });

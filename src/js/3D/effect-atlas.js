@@ -11,13 +11,21 @@ function sample(tex, u, v, out) {
 		out[k] = ((p[a+k] * (1-fx) + p[b+k] * fx) * (1-fy) + (p[c+k] * (1-fx) + p[d+k] * fx) * fy) / 255;
 }
 function bakeAtlas({ triangles, uv, uv2, textures, matrices = [], factor = 1, opacity = 1, size = 1024 }) {
-	const used = [...new Set(triangles)], chart = uv2 || uv;
-	const min = [Infinity, Infinity], max = [-Infinity, -Infinity];
-	for (const i of used) for (let k = 0; k < 2; k++) {
-		min[k] = Math.min(min[k], chart[i*2+k]);
-		max[k] = Math.max(max[k], chart[i*2+k]);
-	}
-	if (max[0]-min[0] < 1e-8 || max[1]-min[1] < 1e-8) return null;
+	const used = [...new Set(triangles)];
+	const bounds = chart => {
+		const min = [Infinity, Infinity], max = [-Infinity, -Infinity];
+		for (const i of used) for (let k = 0; k < 2; k++) {
+			min[k] = Math.min(min[k], chart[i*2+k]);
+			max[k] = Math.max(max[k], chart[i*2+k]);
+		}
+		return max[0]-min[0] < 1e-8 || max[1]-min[1] < 1e-8 ? null : {min, max};
+	};
+	let chart = uv2 || uv, extent = bounds(chart);
+	// A constant/linear second UV set can intentionally sample a mask. Use the
+	// first UV set for packing while still sampling each texture with its own UVs.
+	if (!extent && uv2) { chart = uv; extent = bounds(chart); }
+	if (!extent) return null;
+	const {min, max} = extent;
 	const resultUV = new Float32Array(uv.length);
 	for (const i of used) for (let k = 0; k < 2; k++)
 		resultUV[i*2+k] = (2 + (chart[i*2+k]-min[k]) / (max[k]-min[k]) * (size-4)) / size;

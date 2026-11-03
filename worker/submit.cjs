@@ -2,12 +2,14 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { validateJob, jobId } = require('../src/js/worker/job');
+const { validateAssetJob } = require('../src/js/worker/asset-search');
 (async () => {
 	const [inputFile, id] = process.argv.slice(2);
-	if (!inputFile || !id) throw new Error('Usage: node worker/submit.cjs appearance.json unique-job-id');
+	if (!inputFile || !id) throw new Error('Usage: node worker/submit.cjs appearance-or-asset-job.json unique-job-id');
 	jobId(id + '.json');
 	const raw = JSON.parse(await fs.readFile(inputFile, 'utf8'));
-	const input = validateJob(raw.appearance ? raw : { region: 'eu', appearance: raw });
+	// Asset jobs (models/textures) are queued as written, once they validate.
+	const input = raw.kind ? (validateAssetJob(raw), raw) : validateJob(raw.appearance ? raw : { region: 'eu', appearance: raw });
 	const queue = path.join(__dirname, 'data', 'inbox');
 	await fs.mkdir(queue, { recursive: true });
 	const temporary = path.join(queue, id + '.' + crypto.randomUUID() + '.tmp');

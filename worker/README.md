@@ -178,6 +178,38 @@ jobs are marked failed on startup; retry with a new ID. JSON result files record
 build/version/hash, selected pose, applied customization, gear, timing, and
 warnings. The low-level worker stays running until stopped.
 
+### Asset jobs: search and export game models or textures
+
+The same queue takes asset jobs for set dressing (props, ground textures). One job
+can search the listfile, export named files, or both:
+
+```json
+{ "kind": "models", "search": ["anvil", "crystal|gear"], "limit": 200,
+  "models": [{ "name": "gnome-gear", "file": "world/khazmodan/ironforge/passivedoodads/gnomearea/gnomekinggear.m2" }] }
+```
+
+- `kind` is `models` (M2, exported as GLB with embedded textures) or `textures`
+  (BLP, exported as PNG; the list key is then `textures`).
+- `animations`: optional boolean for model jobs (default `false`). Set `true` to
+  retain skeletal animation clips as well as the rig; preserve both during optimization.
+- `search`: up to 20 case-insensitive regular expressions, matched in one pass
+  against every listfile path with that kind's extension. `search.json` gets, per
+  pattern, `total` and up to `limit` (default 600, max 5000) `{ file, fileDataID }`
+  sorted by path. Write a literal dot as `[.]` (or `\\.`: JSON doubles the backslash).
+- `models` / `textures`: up to 32 / 64 `{ name, file }`, where `file` is a listfile
+  path or a fileDataID and `name` (lowercase letters, digits, hyphens) names the output.
+
+```powershell
+node worker/submit.cjs search.json station-search-004
+```
+
+`submit.cjs` checks the job (JSON, patterns, names) before queueing it; the worker
+checks it again. Results land in `worker/data/results/<job-id>/`, and `result.json`
+records how many paths the search scanned, how long it took and each pattern's
+match count. A 20-pattern model search scans about 134,000 paths in under a second.
+Raw exports keep their skeletons; strip them and optimize before use on the website
+(see `optimizer/`).
+
 For a reproducible raw-file compression comparison:
 
 ```powershell
@@ -235,3 +267,13 @@ their sampled UV animation (Valotettu, body submesh 88). Replacement-texture bod
 effects and other shader families retain the existing export path; this is not
 a complete implementation of WoW's effect shaders. Animated desktop GLBs remain
 outside the static-pose baker.
+
+### Per-hand weapon placement
+
+A recipe or worker job may set `weaponStates: { "mainHand": "held", "offHand": "sheathed" }`.
+Each hand accepts `held`, `sheathed`, or `hidden`; an omitted hand inherits `weapons`.
+This changes the actual equipment attachment and hand grip before baking the pose.
+For example, Shippyboi uses `weapons: "held", weaponStates: { "offHand": "sheathed" }`
+to keep the main-hand weapon equipped and the shield on the back. Existing recipes
+without overrides retain their behavior. This is a worker setting; no desktop UI
+control has been added. The output records overrides and each attachment's state.

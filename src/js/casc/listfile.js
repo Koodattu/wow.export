@@ -47,6 +47,10 @@ let binary_id_to_pf_index = new Map();
 
 let binary_strings_mmap = [];
 let binary_tree_nodes_mmap = null;
+// Views of the mapped files, fetched once. The native `data` getter wraps the whole mapping in a
+// new buffer on every access, which made per-string reads cost as much as the file is large.
+let binary_strings_data = [];
+let binary_tree_nodes_data = null;
 
 let is_binary_mode = false;
 
@@ -186,6 +190,7 @@ const listfile_preload_binary = async () => {
 					throw new Error('Failed to map pf file: ' + mmap_obj.lastError);
 
 				binary_strings_mmap[i] = mmap_obj;
+				binary_strings_data[i] = mmap_obj.data;
 				pf_file_sizes[i] = (await fsp.stat(file_path)).size;
 			} catch (e) {
 				log.write('Error mapping pf file %d: %s', i, e.message);
@@ -239,6 +244,7 @@ const listfile_preload_binary = async () => {
 			log.write('Mapping tree nodes file: %s', tree_nodes_file);
 			if (!binary_tree_nodes_mmap.mapFile(tree_nodes_file, { protection: 'readonly' }))
 				throw new Error('Failed to map tree nodes file: ' + binary_tree_nodes_mmap.lastError);
+			binary_tree_nodes_data = binary_tree_nodes_mmap.data;
 		} catch (e) {
 			log.write('Error mapping tree nodes file: %s', e.message);
 			throw e;
@@ -256,7 +262,7 @@ const listfile_preload_binary = async () => {
 const listfile_binary_find_component_child = (node_ofs, component_name) => {
 	const target_hash = hash_xxhash64(component_name);
 
-	const node_data = binary_tree_nodes_mmap.data;
+	const node_data = binary_tree_nodes_data;
 	const view = new DataView(node_data.buffer, node_data.byteOffset + node_ofs);
 
 	const child_count = view.getUint32(0, false);
@@ -284,7 +290,7 @@ const listfile_binary_find_component_child = (node_ofs, component_name) => {
 };
 
 const listfile_binary_find_file = (node_ofs, filename) => {
-	const node_data = binary_tree_nodes_mmap.data;
+	const node_data = binary_tree_nodes_data;
 	const view = new DataView(node_data.buffer, node_data.byteOffset + node_ofs);
 
 	const child_count = view.getUint32(0, false);
@@ -361,7 +367,7 @@ const listfile_binary_lookup_filename = (filename) => {
 };
 
 const binary_read_string_at_offset = (pf_index, offset) => {
-	const data = binary_strings_mmap[pf_index].data;
+	const data = binary_strings_data[pf_index];
 	let end = offset;
 	while (end < data.length && data[end] !== 0)
 		end++;
@@ -699,6 +705,45 @@ const getFilenamesByExtension = (exts) => {
 	return formatEntries(entries);
 };
 
+/**
+* Every [fileDataID, filename] in the listfile, optionally only those ending in `ext` (lowercase).
+* In binary mode the extension is checked on the raw bytes, so other files are never decoded.
+* @param {string} [ext]
+*/
+function* getEntries(ext) {
+	if (is_binary_mode) {
+		const ext_bytes = ext ? Buffer.from(ext) : null;
+		const decoder = new TextDecoder();
+		for (const [fileDataID, offset] of binary_id_to_offset) {
+			const data = binary_strings_data[binary_id_to_pf_index.get(fileDataID)];
+			let end = offset;
+			while (end < data.length && data[end] !== 0)
+				end++;
+
+			if (ext_bytes) {
+				const start = end - ext_bytes.length;
+				if (start < offset)
+					continue;
+
+				let match = true;
+				for (let i = 0; i < ext_bytes.length && match; i++)
+					match = data[start + i] === ext_bytes[i];
+
+				if (!match)
+					continue;
+			}
+
+			yield [fileDataID, decoder.decode(data.subarray(offset, end))];
+		}
+	}
+
+	// runtime additions (binary mode) or the whole listfile (legacy mode)
+	for (const [fileDataID, filename] of legacy_id_lookup) {
+		if (!ext || filename.endsWith(ext))
+			yield [fileDataID, filename];
+	}
+}
+
 const formatEntries = (file_data_ids) => {
 	// If sorting by ID, perform the sort while the array is only IDs.
 	if (core.view.config.listfileSortByID)
@@ -951,6 +996,7 @@ module.exports = {
 	getByFilename,
 	getFilenamesByExtension,
 	getFilteredEntries,
+	getEntries,
 	getByIDOrUnknown,
 	stripFileEntry,
 	parseFileEntry,
